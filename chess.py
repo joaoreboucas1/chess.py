@@ -104,33 +104,45 @@ def translate_move(board, player, move):
         is_move_legal = True
 
     if len(move) == 3 and move[0] == 'B':
-        # Bishop move, like Be4
-        assert False, 'Not implemented yet'
+        # Bishop move, like Bf4
+        dist_to_right_edge = ord('g') - ord(to_col)
+        dist_to_top_edge = 8 - to_row
+        dist_to_left_edge = ord(to_col) - ord('a')
+        dist_to_bottom_edge = to_row - 1
+
+        # Searching secondary diagonal
+        for i in range(-min(dist_to_left_edge, dist_to_top_edge), min(dist_to_right_edge, dist_to_bottom_edge) + 1):
+            from_row = f'{to_row - i}'
+            from_col = chr(ord(to_col) + i)
+            from_square = from_col + from_row
+            if board[from_square] != 'None' and board[from_square] != 'B'+player:
+                found_piece = True
+                break
+            if board[from_square] == 'B'+player:
+                is_move_legal = (True != found_piece)
+                return from_square, to_square, is_move_legal
+                
+            
+        # Searching main diagonal
+        for i in range(-min(dist_to_left_edge, dist_to_bottom_edge), min(dist_to_right_edge, dist_to_top_edge) + 1):
+            from_row = f'{to_row + i}'
+            from_col = chr(ord(to_col) + i)
+            from_square = from_col + from_row
+            if board[from_square] != 'None' and board[from_square] != 'B'+player:
+                found_piece = True
+                break
+            if board[from_square] == 'B'+player:
+                is_move_legal = (True != found_piece)
+                return from_square, to_square, is_move_legal
+                
+        
     
     from_square = from_col+from_row
     return from_square, to_square, is_move_legal
 
-class Chess:
-    '''
-    Description: a chess game.
-
-    Attibutes:
-
-    Methods:
-    '''
-    board = initialize_board()
-    def __init__(self):
-        pass
-
-    def __str__(self):
-        pass
-
-
-
 
 if __name__=='__main__':
-    print('chess.py')
-    print('Starting game!')
+    print('chess.py starting game!')
     playing = True
     player = '(w)'
     board = initialize_board()
@@ -145,8 +157,10 @@ if __name__=='__main__':
             move = input('Illegal move. Please, input a legal move: ')
             from_square, to_square, is_move_legal = translate_move(board, player, move)
 
-
-        print('Moving {} from {} to {}'.format(board[from_square], from_square, to_square))
+        if board[to_square] != 'None':
+            print(f'{board[from_square]} captures {board[to_square]} on {to_square}')
+        else:
+            print(f'Moving {board[from_square]} from {from_square} to {to_square}')
         move_piece(board, from_square, to_square)
         print_board(board)
         
