@@ -2,9 +2,10 @@
 # chess.py
 # a study python program
 # author: @joaoreboucas1, march 2023
+import sys
 
 pieces = ['P', 'R', 'N', 'B', 'Q', 'K']
-colors=['(b)', '(w)']
+colors = ['(b)', '(w)']
 cols = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 rows = [str(x) for x in range(1,9)]
 
@@ -58,12 +59,14 @@ def print_board(board):
     print('')
     print('-'*(5*8 + 4))
 
+
 def move_piece(board, from_square, to_square):
     '''
     Description: moves a piece from a square to another.
     '''
     board[to_square] = board[from_square]
     board[from_square] = 'None'
+
 
 def translate_move(board, player, move):
     '''
@@ -111,44 +114,47 @@ def translate_move(board, player, move):
         dist_to_bottom_edge = to_row - 1
 
         # Searching secondary diagonal
+        found_piece_1 = False
         for i in range(-min(dist_to_left_edge, dist_to_top_edge), min(dist_to_right_edge, dist_to_bottom_edge) + 1):
             from_row = f'{to_row - i}'
             from_col = chr(ord(to_col) + i)
             from_square = from_col + from_row
             if board[from_square] != 'None' and board[from_square] != 'B'+player:
-                found_piece = True
-                break
+                if is_move_legal:
+                    is_move_legal = False
             if board[from_square] == 'B'+player:
-                is_move_legal = (True != found_piece)
-                return from_square, to_square, is_move_legal
-                
-            
+                bishop_square = from_square
+                is_move_legal = (True != found_piece_1)
+                   
         # Searching main diagonal
+        found_piece_2 = False
         for i in range(-min(dist_to_left_edge, dist_to_bottom_edge), min(dist_to_right_edge, dist_to_top_edge) + 1):
             from_row = f'{to_row + i}'
             from_col = chr(ord(to_col) + i)
             from_square = from_col + from_row
             if board[from_square] != 'None' and board[from_square] != 'B'+player:
-                found_piece = True
-                break
+                if is_move_legal:
+                    is_move_legal = False
             if board[from_square] == 'B'+player:
-                is_move_legal = (True != found_piece)
-                return from_square, to_square, is_move_legal
-                
-        
+                bishop_square = from_square
+                is_move_legal = (True != found_piece_2)
+        return bishop_square, to_square, is_move_legal 
     
     from_square = from_col+from_row
     return from_square, to_square, is_move_legal
 
 
-if __name__=='__main__':
+def play():
+    '''
+    Starts a chess.py match.
+    '''
     print('chess.py starting game!')
     playing = True
     player = '(w)'
     board = initialize_board()
     print_board(board)
     while playing:
-        move = input('{} to move: '.format(player))
+        move = input('{} to move: '.format('White' if player=='(w)' else 'Black'))
         if move == 'q':
             break
         
@@ -168,3 +174,23 @@ if __name__=='__main__':
             player = '(b)'
         elif player=='(b)':
             player = '(w)'
+
+def help():
+    '''
+    Explains algebraic notation
+    '''
+    print('''
+            chess.py is played using algebraic notation. upon starting to play, the white player, referred to as (w), is prompted to 
+            play a move in algebraic notation, such as d4, d5, Nf3. after the move, the black player, referred to as (b), 
+          ''')
+
+if __name__=='__main__':
+    if len(sys.argv) == 1:
+        print('Usage: python chess.py <command>')
+        print('Available commands:')
+        print('    play: start a game')
+        print('    help: explain algebraic notation')
+        exit()
+    
+    if sys.argv[1] == 'play':
+        play()
