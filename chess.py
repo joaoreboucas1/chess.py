@@ -70,29 +70,43 @@ def translate_move(board, player, move):
     Translates a move in algebraic notation to a from_square and to_square
     '''
     is_move_legal = False
-    if player=='(w)':
-        sign = 1
-    else:
-        sign = -1
     to_square = move[-2:]
     to_col = to_square[0]
     to_row = int(to_square[1])
-
+    pawn_direction = 1 if player=='(w)' else -1
     if len(move)==2:
-        # Pawn move
+        # Pawn move, like e4
         if (player=='(w)' and to_row==1) \
                 or (player=='(b)' and to_row==8) \
                 or board[to_square] != 'None':
-            return to_square, to_square, is_move_legal
+            return None, to_square, is_move_legal
 
         from_col = to_col
-        if board[to_col+str(to_row - sign)][0] == 'P':
-            from_row = str(to_row - sign)
-        elif board[to_col+str(to_row - 2*sign)][0] == 'P' and board[to_col+str(to_row - sign)] == 'None':
-            from_row = str(to_row - 2*sign)
+        pawn_starting_row = 2 if player == '(w)' else 7
+        if board[to_col+str(to_row - pawn_direction)] == 'P'+player:
+            from_row = str(to_row - pawn_direction)
+        elif to_row - 2*pawn_direction == pawn_starting_row \
+                and board[to_col+str(to_row - 2*pawn_direction)] == 'P'+player \
+                and board[to_col+str(to_row - pawn_direction)] == 'None':
+            from_row = str(to_row - 2*pawn_direction)
         else:
-            return to_square, to_square, is_move_legal
+            return None, to_square, is_move_legal
         is_move_legal = True
+    
+    if len(move) == 4 and move[0].islower():
+        # Pawn capture, like dxe5
+        from_col = move[0]
+        from_row = str(to_row - pawn_direction)
+        opposite_player = '(b)' if player == '(w)' else '(w)'
+        if board[to_square][-3:] != opposite_player \
+                and board[from_square] == 'P'+player:
+            return None, to_square, is_move_legal
+        is_move_legal = True
+
+    if len(move) == 3 and move[0] == 'B':
+        # Bishop move, like Be4
+        assert False, 'Not implemented yet'
+    
     from_square = from_col+from_row
     return from_square, to_square, is_move_legal
 
