@@ -179,10 +179,14 @@ def help():
     '''
     Explains algebraic notation
     '''
-    print('''
-            chess.py is played using algebraic notation. upon starting to play, the white player, referred to as (w), is prompted to 
-            play a move in algebraic notation, such as d4, d5, Nf3. after the move, the black player, referred to as (b), 
-          ''')
+    print('''chess.py is played using algebraic notation. upon starting to play, the white player is prompted to 
+type a move in algebraic notation (e.g. d4, exb4, Nf3, a8=Q, o-o-o) and press enter.
+after the move, the black player will also be prompted to 
+input a move in algebraic notation and the game goes on.
+learn more about chess algebraic notation in
+    https://en.wikipedia.org/wiki/Algebraic_notation_(chess)
+    https://www.chess.com/terms/chess-notation''')
+    exit()
 
 if __name__=='__main__':
     if len(sys.argv) == 1:
@@ -194,3 +198,8 @@ if __name__=='__main__':
     
     if sys.argv[1] == 'play':
         play()
+        exit()
+
+    if sys.argv[1] == 'help':
+        help()
+        exit()
