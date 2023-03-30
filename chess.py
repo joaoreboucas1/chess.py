@@ -3,11 +3,13 @@
 # a study python program
 # author: @joaoreboucas1, march 2023
 import sys
+from pathlib import Path
 
 pieces = ['P', 'R', 'N', 'B', 'Q', 'K']
 colors = ['(b)', '(w)']
 cols = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 rows = [str(x) for x in range(1,9)]
+knights_positions = {'(w)': ['b1', 'g1'], '(b)': ['b8', 'g8']}
 
 def initialize_board():
     '''
@@ -72,7 +74,9 @@ def translate_move(board, player, move):
     '''
     Translates a move in algebraic notation to a from_square and to_square
     '''
+    global knights_positions
     is_move_legal = False
+    opposite_player = '(b)' if player == '(w)' else '(w)'
     to_square = move[-2:]
     to_col = to_square[0]
     to_row = int(to_square[1])
@@ -100,7 +104,6 @@ def translate_move(board, player, move):
         # Pawn capture, like dxe5
         from_col = move[0]
         from_row = str(to_row - pawn_direction)
-        opposite_player = '(b)' if player == '(w)' else '(w)'
         if board[to_square][-3:] != opposite_player \
                 and board[from_square] == 'P'+player:
             return None, to_square, is_move_legal
@@ -138,7 +141,52 @@ def translate_move(board, player, move):
             if board[from_square] == 'B'+player:
                 bishop_square = from_square
                 is_move_legal = (True != found_piece_2)
-        return bishop_square, to_square, is_move_legal 
+        return bishop_square, to_square, is_move_legal
+    
+    if len(move) == 3 and move[0] == 'N':
+        # Knight move, like Nf3
+        knights_available = []
+        if board[to_square] != 'None':
+            return None, to_square, is_move_legal
+        for from_square in knights_positions[player]:
+            from_col, from_row = from_square
+            from_row = int(from_row)
+            if (abs(to_row - from_row) == 1 and abs(ord(to_col) - ord(from_col)) == 2) or (abs(to_row - from_row) == 2 and abs(ord(to_col) - ord(from_col)) == 1):
+                knights_available.append(True)
+            else:
+                knights_available.append(False)
+        
+        is_move_legal = knights_available[0] != knights_available[1]
+        if is_move_legal:
+            from_square = knights_positions[player][0] if knights_available[0] else knights_positions[player][1]
+            if knights_available[0]:
+                knights_positions[player][0] = to_square
+            else:
+                knights_positions[player][1] = to_square
+        return from_square, to_square, is_move_legal
+    
+    if len(move) == 4 and move[0] == 'N':
+        # Knight captures, like Nxc6
+        knights_available = []
+        if board[to_square][-3:] != opposite_player or move[1] != 'x':
+            return None, to_square, is_move_legal
+        for from_square in knights_positions[player]:
+            from_col, from_row = from_square
+            from_row = int(from_row)
+            if (abs(to_row - from_row) == 1 and abs(ord(to_col) - ord(from_col)) == 2) or (abs(to_row - from_row) == 2 and abs(ord(to_col) - ord(from_col)) == 1):
+                knights_available.append(True)
+            else:
+                knights_available.append(False)
+        
+        is_move_legal = knights_available[0] != knights_available[1]
+        if is_move_legal:
+            from_square = knights_positions[player][0] if knights_available[0] else knights_positions[player][1]
+            if knights_available[0]:
+                knights_positions[player][0] = to_square
+            else:
+                knights_positions[player][1] = to_square
+        return from_square, to_square, is_move_legal
+
     
     from_square = from_col+from_row
     return from_square, to_square, is_move_legal
@@ -179,18 +227,14 @@ def help():
     '''
     Explains algebraic notation
     '''
-    print('''chess.py is played using algebraic notation. upon starting to play, the white player is prompted to 
-type a move in algebraic notation (e.g. d4, exb4, Nf3, a8=Q, o-o-o) and press enter.
-after the move, the black player will also be prompted to 
-input a move in algebraic notation and the game goes on.
-learn more about chess algebraic notation in
-    https://en.wikipedia.org/wiki/Algebraic_notation_(chess)
-    https://www.chess.com/terms/chess-notation''')
+    with open('help.txt') as f:
+        print(f.read())
     exit()
 
 if __name__=='__main__':
     if len(sys.argv) == 1:
-        print('Usage: python chess.py <command>')
+        program = Path(sys.argv[0]).name
+        print(f'Usage: python {program} command')
         print('Available commands:')
         print('    play: start a game')
         print('    help: explain algebraic notation')
