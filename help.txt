@@ -1,6 +1,7 @@
 chess.py is played using algebraic notation.
 upon starting to play, the white player is prompted to type a move in algebraic notation (e.g. d4, exb4, Nf3, a8=Q, o-o-o) and press enter.
 after the move, the black player will also be prompted to input a move in algebraic notation and the game goes on.
+any player can leave the game at any point by typing 'q' in the prompt (or by the classic control+c).
 learn more about chess algebraic notation in
     https://en.wikipedia.org/wiki/Algebraic_notation_(chess)
     https://www.chess.com/terms/chess-notation

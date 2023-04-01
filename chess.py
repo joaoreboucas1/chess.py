@@ -4,11 +4,27 @@
 # author: @joaoreboucas1, march 2023
 import sys
 from pathlib import Path
+from math import copysign
 
 pieces = ['P', 'R', 'N', 'B', 'Q', 'K']
 colors = ['(b)', '(w)']
 cols = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 rows = [str(x) for x in range(1,9)]
+piece_locations = {'(w)':
+                        {'P': ['a2', 'b2', 'c2', 'd2', 'e2', 'f2', 'g2', 'h2'],
+                        'R': ['a1', 'h1'],
+                        'N': ['b1', 'g1'],
+                        'B': ['c1', 'f1'],
+                        'Q': 'd1',
+                        'K': 'e1'},
+                    '(b)':
+                        {'P': ['a7', 'b7', 'c7', 'd7', 'e7', 'f7', 'g7', 'h7'],
+                        'R': ['a8', 'h8'],
+                        'N': ['b8', 'g8'],
+                        'B': ['c8', 'f8'],
+                        'Q': 'd8',
+                        'K': 'e8'}                        
+                }
 knights_positions = {'(w)': ['b1', 'g1'], '(b)': ['b8', 'g8']}
 
 def initialize_board():
@@ -74,7 +90,7 @@ def translate_move(board, player, move):
     '''
     Translates a move in algebraic notation to a from_square and to_square
     '''
-    global knights_positions
+    global piece_locations
     error_msg = None
     is_move_legal = False
     opposite_player = '(b)' if player == '(w)' else '(w)'
@@ -120,51 +136,49 @@ def translate_move(board, player, move):
 
     elif len(move) == 3 and move[0] == 'B':
         # Bishop move, like Bf4
-        dist_to_right_edge = ord('g') - ord(to_col)
-        dist_to_top_edge = 8 - to_row
-        dist_to_left_edge = ord(to_col) - ord('a')
-        dist_to_bottom_edge = to_row - 1
+        bishop_positions = piece_locations[player]['B']
+        for i, bishop_position in enumerate(bishop_positions):
+            if to_square == bishop_position:
+                error_msg = 'Bishop is already in {to_square}.'
+                return None, to_square, is_move_legal, error_msg
 
-        # Searching secondary diagonal
-        found_piece_1 = False
-        for i in range(-min(dist_to_left_edge, dist_to_top_edge), min(dist_to_right_edge, dist_to_bottom_edge) + 1):
-            from_row = f'{to_row - i}'
-            from_col = chr(ord(to_col) + i)
-            from_square = from_col + from_row
-            if board[from_square] != 'None' and board[from_square] != 'B'+player:
-                if is_move_legal:
-                    is_move_legal = False
-            if board[from_square] == 'B'+player:
-                bishop_square = from_square
-                is_move_legal = (True != found_piece_1)
-                   
-        # Searching main diagonal
-        found_piece_2 = False
-        for i in range(-min(dist_to_left_edge, dist_to_bottom_edge), min(dist_to_right_edge, dist_to_top_edge) + 1):
-            from_row = f'{to_row + i}'
-            from_col = chr(ord(to_col) + i)
-            from_square = from_col + from_row
-            if board[from_square] != 'None' and board[from_square] != 'B'+player:
-                if is_move_legal:
-                    is_move_legal = False
-            if board[from_square] == 'B'+player:
-                bishop_square = from_square
-                is_move_legal = (True != found_piece_2)
-        if not is_move_legal:
-            if found_piece_1 or found_piece_2:
-                error_msg = f'Bishop in {bishop_square} cannot move to {to_square} because a piece is in the way.'
-            else:
-                error_msg = f'Cannot find bishop to move to {to_square}.'
+            to_col, to_row = to_square
+            from_col, from_row = bishop_position
+            horizontal_dist = ord(to_col) - ord(from_col)
+            vertical_dist = int(to_row) - int(from_row)
+            are_they_diagonally_connected = abs(horizontal_dist) == abs(vertical_dist)
+            if are_they_diagonally_connected:
+                if abs(vertical_dist) == 1:
+                    is_move_legal = True
+                    from_square = bishop_position
+                    piece_locations[player]['B'][i] = to_square
+                    return from_square, to_square, is_move_legal, error_msg
+                else:
+                    for j in range(1, abs(vertical_dist)):
+                        sign_vertical = int(copysign(1, vertical_dist))
+                        sign_horizontal = int(copysign(1, horizontal_dist))
+                        trying_row = str(int(from_row) + j*sign_vertical)
+                        trying_col = chr(ord(from_col) + j*sign_horizontal)
+                        trying_square = trying_col + str(trying_row)
+                        if board[trying_square] != 'None':
+                            error_msg = f'Bishop in {bishop_position} cannot move to {to_square} because {board[trying_square]} in {trying_square} blocks the path.'
+                            return None, to_square, is_move_legal, error_msg
+                    is_move_legal = True
+                    from_square = bishop_position
+                    piece_locations[player]['B'][i] = to_square
+                    return from_square, to_square, is_move_legal, error_msg
         
-        return bishop_square, to_square, is_move_legal, error_msg
+        error_msg = f'No bishop can move to {to_square}.'
+        return None, to_square, is_move_legal, error_msg 
     
     elif len(move) == 3 and move[0] == 'N':
         # Knight move, like Nf3
+        knights_positions = piece_locations[player]['N']
         knights_available = []
         if board[to_square] != 'None':
             error_msg = f'The {to_square} square is not empty, did you mean {move[0] + "x" + move[1:]}?'
             return None, to_square, is_move_legal, error_msg
-        for from_square in knights_positions[player]:
+        for from_square in knights_positions:
             from_col, from_row = from_square
             from_row = int(from_row)
             if (abs(to_row - from_row) == 1 and abs(ord(to_col) - ord(from_col)) == 2) or (abs(to_row - from_row) == 2 and abs(ord(to_col) - ord(from_col)) == 1):
@@ -174,25 +188,26 @@ def translate_move(board, player, move):
         
         is_move_legal = knights_available[0] != knights_available[1]
         if is_move_legal:
-            from_square = knights_positions[player][0] if knights_available[0] else knights_positions[player][1]
+            from_square = knights_positions[0] if knights_available[0] else knights_positions[1]
             if knights_available[0]:
-                knights_positions[player][0] = to_square
+                piece_locations[player]['N'][0] = to_square
             else:
-                knights_positions[player][1] = to_square
+                piece_locations[player]['N'][0] = to_square
         else:
             if knights_available[0]:
-                error_msg = f'The move {move} is ambiguous: both knights in {knights_positions[player][0]} and {knights_positions[player][1]} can move to {to_square}.'
+                error_msg = f'The move {move} is ambiguous: both knights in {knights_positions[0]} and {knights_positions[1]} can move to {to_square}.'
             else:
                 error_msg = f'No knights can move to {to_square}.'
         return from_square, to_square, is_move_legal, error_msg
     
     elif len(move) == 4 and move[0] == 'N':
         # Knight captures, like Nxc6
+        knights_positions = piece_locations[player]['N']
         knights_available = []
         if move[1] != 'x':
             error_msg = f'Invalid move: {move}'
             return None, to_square, is_move_legal, error_msg
-        for from_square in knights_positions[player]:
+        for from_square in knights_positions:
             from_col, from_row = from_square
             from_row = int(from_row)
             if (abs(to_row - from_row) == 1 and abs(ord(to_col) - ord(from_col)) == 2) or (abs(to_row - from_row) == 2 and abs(ord(to_col) - ord(from_col)) == 1):
@@ -202,14 +217,14 @@ def translate_move(board, player, move):
         
         is_move_legal = knights_available[0] != knights_available[1]
         if is_move_legal:
-            from_square = knights_positions[player][0] if knights_available[0] else knights_positions[player][1]
+            from_square = knights_positions[0] if knights_available[0] else knights_positions[1]
             if knights_available[0]:
-                knights_positions[player][0] = to_square
+                piece_locations[player]['N'][0] = to_square
             else:
-                knights_positions[player][1] = to_square
+                piece_locations[player]['N'][0] = to_square
         else:
             if knights_available[0]:
-                error_msg = f'The move {move} is ambiguous: both knights in {knights_positions[player][0]} and {knights_positions[player][1]} can capture {board[to_square]} in {to_square}.'
+                error_msg = f'The move {move} is ambiguous: both knights in {knights_positions[0]} and {knights_positions[1]} can capture {board[to_square]} in {to_square}.'
         return from_square, to_square, is_move_legal, error_msg
     
     else:
