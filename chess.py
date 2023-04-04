@@ -122,7 +122,7 @@ def translate_move(board, player, move):
         from_square = from_col+from_row
         return from_square, to_square, is_move_legal, error_msg
     
-    elif len(move) == 4 and move[0].islower():
+    elif len(move)==4 and move[0].islower():
         # Pawn capture, like dxe5
         from_col = move[0]
         from_row = str(to_row - pawn_direction)
@@ -171,13 +171,22 @@ def translate_move(board, player, move):
         error_msg = f'No bishop can move to {to_square}.'
         return None, to_square, is_move_legal, error_msg 
     
-    elif len(move) == 3 and move[0] == 'N':
+    elif (len(move) == 3 or len(move) == 4) and move[0] == 'N':
         # Knight move, like Nf3
         knights_positions = piece_locations[player]['N']
         knights_available = []
-        if board[to_square] != 'None':
-            error_msg = f'The {to_square} square is not empty, did you mean {move[0] + "x" + move[1:]}?'
+        if len(move) == 3 and board[to_square] != 'None':
+            error_msg = f'The {to_square} square is not empty.'
+            if board[to_square][-3:] == opposite_player:
+                error_msg = error_msg+f'Did you mean {move[0] + "x" + move[1:]}?'
             return None, to_square, is_move_legal, error_msg
+        if len(move) == 4 and move[1] != 'x':
+            error_msg = f'Unrecognized move {move}.'
+            return None, to_square, is_move_legal, error_msg
+        if len(move) == 4 and board[to_square][-3:] != opposite_player:
+            error_msg = f'Cannot capture {board[to_square]} in {to_square}.'
+            return None, to_square, is_move_legal, error_msg
+        
         for from_square in knights_positions:
             from_col, from_row = from_square
             from_row = int(from_row)
@@ -198,33 +207,13 @@ def translate_move(board, player, move):
                 error_msg = f'The move {move} is ambiguous: both knights in {knights_positions[0]} and {knights_positions[1]} can move to {to_square}.'
             else:
                 error_msg = f'No knights can move to {to_square}.'
-        return from_square, to_square, is_move_legal, error_msg
-    
-    elif len(move) == 4 and move[0] == 'N':
-        # Knight captures, like Nxc6
-        knights_positions = piece_locations[player]['N']
-        knights_available = []
-        if move[1] != 'x':
-            error_msg = f'Invalid move: {move}'
-            return None, to_square, is_move_legal, error_msg
-        for from_square in knights_positions:
-            from_col, from_row = from_square
-            from_row = int(from_row)
-            if (abs(to_row - from_row) == 1 and abs(ord(to_col) - ord(from_col)) == 2) or (abs(to_row - from_row) == 2 and abs(ord(to_col) - ord(from_col)) == 1):
-                knights_available.append(True)
-            else:
-                knights_available.append(False)
         
-        is_move_legal = knights_available[0] != knights_available[1]
-        if is_move_legal:
-            from_square = knights_positions[0] if knights_available[0] else knights_positions[1]
-            if knights_available[0]:
-                piece_locations[player]['N'][0] = to_square
-            else:
-                piece_locations[player]['N'][0] = to_square
-        else:
-            if knights_available[0]:
-                error_msg = f'The move {move} is ambiguous: both knights in {knights_positions[0]} and {knights_positions[1]} can capture {board[to_square]} in {to_square}.'
+        if len(move) == 4:
+            taken_piece = board[to_square]
+            for i, piece_location in enumerate(piece_locations[opposite_player][taken_piece[0]]):
+                if piece_location==to_square:
+                    piece_locations[opposite_player][taken_piece[0]][i] = 'Dead'
+                    break
         return from_square, to_square, is_move_legal, error_msg
     
     else:
