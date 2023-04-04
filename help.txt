@@ -2,6 +2,20 @@ chess.py is played using algebraic notation.
 upon starting to play, the white player is prompted to type a move in algebraic notation (e.g. d4, exb4, Nf3, a8=Q, o-o-o) and press enter.
 after the move, the black player will also be prompted to input a move in algebraic notation and the game goes on.
 any player can leave the game at any point by typing 'q' in the prompt (or by the classic control+c).
+brief explanation:
+    pawn moves - just input the square you want the pawn to move (e.g. b4, e4, d5)
+    piece moves - input the name of the piece followed by the destination square (e.g. Qb4, Nf3)
+    piece names - rook = R, knight = N, bishop = B, queen = Q, king = K
+    pawn captures - input the column of the pawn, followed by x, followed by the capture square (e.g. exd5)
+    piece captures - input the name of the piece, followed by x, followed by the capture square (e.g. Bxd5)
+    castles - o-o for short castles, o-o-o for long castles
+    ambiguous moves - if two pieces can execute a move to the destination square, you need to specify which piece will perform the move.
+                      example: assuming the first rank is clear, two rooks on a1 and e1 can move to c1. Rc1 is an ambiguous move.
+                      in this case, you must specify the column of the rook that will move to c1: Rac1 or Rec1.
+                      rows can also cause ambiguity. two knights on a1 and a3 can both go to c2. the move Nc2 is ambiguous.
+                      in this case, you must specify the row of the knight that will move to c2: N1c2 for N3c2.
+    checks - in algebraic notation, moves that check the opposing king are usually denoted with a plus sign in the end (e.g. Qb1+).
+             the player does not need to insert the plus sign in the end of the move.                        
 learn more about chess algebraic notation in
     https://en.wikipedia.org/wiki/Algebraic_notation_(chess)
     https://www.chess.com/terms/chess-notation
