@@ -4,7 +4,6 @@
 # author: @joaoreboucas1, march 2023
 import sys
 from pathlib import Path
-from math import copysign
 
 pieces = ['P', 'R', 'N', 'B', 'Q', 'K']
 colors = ['(b)', '(w)']
@@ -25,7 +24,6 @@ piece_locations = {'(w)':
                         'Q': 'd8',
                         'K': 'e8'}                        
                 }
-knights_positions = {'(w)': ['b1', 'g1'], '(b)': ['b8', 'g8']}
 
 def initialize_board():
     '''
@@ -34,8 +32,7 @@ def initialize_board():
     Arguments:
         board: a dictionary whose keys are the board square names
     '''
-    global cols, rows
-
+    global rows, cols
     board = {}
     for col in cols:
         for row in rows:
@@ -66,6 +63,7 @@ def initialize_board():
 
 
 def print_board(board):
+    global rows, cols
     for row in rows[::-1]:
         print(row, end='  ')
         for col in cols:
@@ -90,7 +88,7 @@ def translate_move(board, player, move):
     '''
     Translates a move in algebraic notation to a from_square and to_square
     '''
-    global piece_locations
+    global rows, cols, piece_locations
     error_msg = None
     is_move_legal = False
     opposite_player = '(b)' if player == '(w)' else '(w)'
@@ -98,6 +96,30 @@ def translate_move(board, player, move):
     to_col = to_square[0]
     to_row = int(to_square[1])
     pawn_direction = 1 if player=='(w)' else -1
+
+    if move = 'o-o':
+        # Short castles
+        if player=='(w)':
+            if board['e1'] != 'K'+player:
+                error_msg = f"White's king must be on e1 to castle."
+                return None, to_square, is_move_legal, error_msg
+            if board['h1'] != 'R'+player:
+                error_msg = f"White's rook must be on h1 to castle."
+                return None, to_square, is_move_legal, error_msg
+            if board['f1'] != 'None' or board['g1'] != 'None':
+                if board['f1'] != 'None':
+                    error_msg = f'Cannot short castles because {board['f1']} in f1 blocks the path.'
+                    return None, to_square, is_move_legal, error_msg
+                else:
+                    error_msg = f'Cannot short castles because {board['g1']} in g1 blocks the path.'
+                    return None, to_square, is_move_legal, error_msg
+            is_move_legal = True
+            board['f1'] = 'R'+player
+            board['g1'] = 'K'+player
+            board['e1'] = 'None'
+            board['h1'] = 'None'
+            return None, None, is_move_legal, error_msg 
+
     if len(move)==2:
         # Pawn move, like e4
         if (player=='(w)' and to_row==1) or (player=='(b)' and to_row==8):
@@ -126,12 +148,12 @@ def translate_move(board, player, move):
         # Pawn capture, like dxe5
         from_col = move[0]
         from_row = str(to_row - pawn_direction)
+        from_square = from_col+from_row
         if board[to_square][-3:] != opposite_player \
                 and board[from_square] == 'P'+player:
             error_msg = f'Pawn in {from_square} cannot capture {board[to_square]} in {to_square}.'
             return None, to_square, is_move_legal, error_msg
         is_move_legal = True
-        from_square = from_col+from_row
         return from_square, to_square, is_move_legal, error_msg
 
     elif len(move) == 3 and move[0] == 'B':
@@ -155,8 +177,8 @@ def translate_move(board, player, move):
                     return from_square, to_square, is_move_legal, error_msg
                 else:
                     for j in range(1, abs(vertical_dist)):
-                        sign_vertical = int(copysign(1, vertical_dist))
-                        sign_horizontal = int(copysign(1, horizontal_dist))
+                        sign_vertical = int(vertical_dist/abs(vertical_dist))
+                        sign_horizontal = int(horizontal_dist/abs(horizontal_dist))
                         trying_row = str(int(from_row) + j*sign_vertical)
                         trying_col = chr(ord(from_col) + j*sign_horizontal)
                         trying_square = trying_col + str(trying_row)
@@ -175,22 +197,23 @@ def translate_move(board, player, move):
         # Knight move, like Nf3
         knights_positions = piece_locations[player]['N']
         knights_available = []
+        if len(move) == 4 and move[1] not in rows + cols + ['x']:
+            error_msg = f'The second character in move {move} must be a row, a column or x.'
+            return None, to_square, is_move_legal, error_msg
         if len(move) == 3 and board[to_square] != 'None':
             error_msg = f'The {to_square} square is not empty.'
             if board[to_square][-3:] == opposite_player:
                 error_msg = error_msg+f'Did you mean {move[0] + "x" + move[1:]}?'
             return None, to_square, is_move_legal, error_msg
-        if len(move) == 4 and move[1] != 'x':
-            error_msg = f'Unrecognized move {move}.'
-            return None, to_square, is_move_legal, error_msg
-        if len(move) == 4 and board[to_square][-3:] != opposite_player:
+        if len(move) == 4 and move[1] == 'x' and board[to_square][-3:] != opposite_player:
             error_msg = f'Cannot capture {board[to_square]} in {to_square}.'
             return None, to_square, is_move_legal, error_msg
         
         for from_square in knights_positions:
             from_col, from_row = from_square
             from_row = int(from_row)
-            if (abs(to_row - from_row) == 1 and abs(ord(to_col) - ord(from_col)) == 2) or (abs(to_row - from_row) == 2 and abs(ord(to_col) - ord(from_col)) == 1):
+            if (abs(to_row - from_row) == 1 and abs(ord(to_col) - ord(from_col)) == 2) or \
+                    (abs(to_row - from_row) == 2 and abs(ord(to_col) - ord(from_col)) == 1):
                 knights_available.append(True)
             else:
                 knights_available.append(False)
@@ -238,6 +261,8 @@ def play():
         from_square, to_square, is_move_legal, error_msg = translate_move(board, player, move)
         while not is_move_legal:
             move = input(f'{error_msg} Please, input a legal move: ')
+            if move == 'q':
+                exit()
             from_square, to_square, is_move_legal, error_msg = translate_move(board, player, move)
 
         if board[to_square] != 'None':
