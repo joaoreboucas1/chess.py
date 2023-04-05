@@ -22,7 +22,7 @@ piece_locations = {'(w)':
                         'N': ['b8', 'g8'],
                         'B': ['c8', 'f8'],
                         'Q': 'd8',
-                        'K': 'e8'}                        
+                        'K': 'e8'}
                 }
 
 def initialize_board():
@@ -92,12 +92,13 @@ def translate_move(board, player, move):
     error_msg = None
     is_move_legal = False
     opposite_player = '(b)' if player == '(w)' else '(w)'
-    to_square = move[-2:]
-    to_col = to_square[0]
-    to_row = int(to_square[1])
+    if move not in ['o-o', 'o-o-o']:
+        to_square = move[-2:]
+        to_col = to_square[0]
+        to_row = int(to_square[1])
     pawn_direction = 1 if player=='(w)' else -1
 
-    if move = 'o-o':
+    if move == 'o-o':
         # Short castles
         if player=='(w)':
             if board['e1'] != 'K'+player:
@@ -108,10 +109,10 @@ def translate_move(board, player, move):
                 return None, to_square, is_move_legal, error_msg
             if board['f1'] != 'None' or board['g1'] != 'None':
                 if board['f1'] != 'None':
-                    error_msg = f'Cannot short castles because {board['f1']} in f1 blocks the path.'
+                    error_msg = f'Cannot short castles because {board["f1"]} in f1 blocks the path.'
                     return None, to_square, is_move_legal, error_msg
                 else:
-                    error_msg = f'Cannot short castles because {board['g1']} in g1 blocks the path.'
+                    error_msg = f'Cannot short castles because {board["g1"]} in g1 blocks the path.'
                     return None, to_square, is_move_legal, error_msg
             is_move_legal = True
             board['f1'] = 'R'+player
