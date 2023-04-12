@@ -84,7 +84,87 @@ def move_piece(board, from_square, to_square):
     board[from_square] = 'None'
 
 
-def translate_move(board, player, move):
+def process_bishop_move(board, player, move):
+    # Bishop move, like Bf4
+    global rows, cols, piece_locations
+    is_move_legal = False
+    error_msg = None
+    opposite_player = '(b)' if player == '(w)' else '(w)'
+
+    # Is this a readable bishop move?
+    # Conditions:
+    # - len(move) must be either 3 or 4
+    # - the last two chars must be a recognizable square on the board
+    # - if len(move) == 4, the second char must be 'x' and the last two chars 
+    if (len(move) not in [3,4]) or (move[-2:] not in board.keys()) or (len(move) == 4 and move[1] != 'x'):
+        error_msg = 'Unrecognizable bishop move: {move}.'
+        return None, None, is_move_legal, error_msg
+
+    # Recognize target square
+    to_square = move[-2:]
+    
+    # Can some bishop move to the target square?
+    # Conditions:
+    # - the bishop square and the target square must be connected by a diagonal
+    # - moving diagonally == moving the same distance vertically and horizontally
+    # - if the squares are diagonally connected, there must be no pieces between them
+    bishop_positions = piece_locations[player]['B']
+    for i, bishop_position in enumerate(bishop_positions):
+        # Check the trivial case in which the bishop is already in the target square
+        if to_square == bishop_position:
+            error_msg = f'Bishop is already in {to_square}.'
+            return None, to_square, is_move_legal, error_msg
+
+        to_col, to_row = to_square
+        from_col, from_row = bishop_position
+        horizontal_dist = ord(to_col) - ord(from_col)
+        vertical_dist = int(to_row) - int(from_row)
+        are_squares_diagonally_connected = abs(horizontal_dist) == abs(vertical_dist)
+        if are_squares_diagonally_connected:
+            break
+    
+    if not are_squares_diagonally_connected:
+        error_msg = f'No bishop can move to {move}.'
+        return None, None, is_move_legal, error_msg
+
+    # If the squares are diagonally connected, we need to check if there is a piece in the way
+    if abs(vertical_dist) > 1:
+        for j in range(1, abs(vertical_dist)):
+            sign_vertical = int(vertical_dist/abs(vertical_dist))
+            sign_horizontal = int(horizontal_dist/abs(horizontal_dist))
+            trying_row = str(int(from_row) + j*sign_vertical)
+            trying_col = chr(ord(from_col) + j*sign_horizontal)
+            trying_square = trying_col + str(trying_row)
+            if board[trying_square] != 'None':
+                error_msg = f'Bishop in {bishop_position} cannot move to {to_square} because {board[trying_square]} in {trying_square} blocks the path.'
+                return None, to_square, is_move_legal, error_msg
+        
+    # If the bishop can go to the target square, we need to check if it is empty (if not captures) or it's a enemy piece (if capture)
+    if len(move) == 3 and board[to_square] != 'None':
+        error_msg = f'Cannot move bishop to {to_square} because it is not empty.'
+        if board[to_square][-3:] == opposite_player:
+            error_msg += f' Did you mean Bx{to_square}?'
+        return None, None, is_move_legal, error_msg
+    
+    if len(move) == 4 and board[to_square][-3:] != opposite_player:
+        error_msg = f'Bishop cannot capture {board[to_square]}.'
+        if board[to_square][0] == 'None':
+            error_msg += f' Did you mean B{to_square}?'
+        return None, None, is_move_legal, error_msg
+    
+    # Update piece locations
+    piece_locations[player]['B'][i] = to_square
+    if len(move) == 4:
+        captured_piece = board[to_square][0]
+        for i, piece_location in enumerate(piece_locations[opposite_player][captured_piece]):
+            if board[to_square] == piece_location:
+                piece_locations[opposite_player][captured_piece][i] = 'Captured'
+
+    is_move_legal = True
+    from_square = bishop_position
+    return from_square, to_square, is_move_legal, error_msg
+
+def process_move(board, player, move):
     '''
     Translates a move in algebraic notation to a from_square and to_square
     '''
@@ -158,41 +238,7 @@ def translate_move(board, player, move):
         return from_square, to_square, is_move_legal, error_msg
 
     elif len(move) == 3 and move[0] == 'B':
-        # Bishop move, like Bf4
-        bishop_positions = piece_locations[player]['B']
-        for i, bishop_position in enumerate(bishop_positions):
-            if to_square == bishop_position:
-                error_msg = 'Bishop is already in {to_square}.'
-                return None, to_square, is_move_legal, error_msg
-
-            to_col, to_row = to_square
-            from_col, from_row = bishop_position
-            horizontal_dist = ord(to_col) - ord(from_col)
-            vertical_dist = int(to_row) - int(from_row)
-            are_they_diagonally_connected = abs(horizontal_dist) == abs(vertical_dist)
-            if are_they_diagonally_connected:
-                if abs(vertical_dist) == 1:
-                    is_move_legal = True
-                    from_square = bishop_position
-                    piece_locations[player]['B'][i] = to_square
-                    return from_square, to_square, is_move_legal, error_msg
-                else:
-                    for j in range(1, abs(vertical_dist)):
-                        sign_vertical = int(vertical_dist/abs(vertical_dist))
-                        sign_horizontal = int(horizontal_dist/abs(horizontal_dist))
-                        trying_row = str(int(from_row) + j*sign_vertical)
-                        trying_col = chr(ord(from_col) + j*sign_horizontal)
-                        trying_square = trying_col + str(trying_row)
-                        if board[trying_square] != 'None':
-                            error_msg = f'Bishop in {bishop_position} cannot move to {to_square} because {board[trying_square]} in {trying_square} blocks the path.'
-                            return None, to_square, is_move_legal, error_msg
-                    is_move_legal = True
-                    from_square = bishop_position
-                    piece_locations[player]['B'][i] = to_square
-                    return from_square, to_square, is_move_legal, error_msg
-        
-        error_msg = f'No bishop can move to {to_square}.'
-        return None, to_square, is_move_legal, error_msg 
+        return process_bishop_move(board, player, move)
     
     elif (len(move) == 3 or len(move) == 4) and move[0] == 'N':
         # Knight move, like Nf3
@@ -259,12 +305,12 @@ def play():
         if move == 'q':
             break
         
-        from_square, to_square, is_move_legal, error_msg = translate_move(board, player, move)
+        from_square, to_square, is_move_legal, error_msg = process_move(board, player, move)
         while not is_move_legal:
             move = input(f'{error_msg} Please, input a legal move: ')
             if move == 'q':
                 exit()
-            from_square, to_square, is_move_legal, error_msg = translate_move(board, player, move)
+            from_square, to_square, is_move_legal, error_msg = process_move(board, player, move)
 
         if board[to_square] != 'None':
             print(f'{board[from_square]} captures {board[to_square]} on {to_square}')
