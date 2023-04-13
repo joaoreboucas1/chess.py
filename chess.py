@@ -91,15 +91,6 @@ def process_bishop_move(board, player, move):
     error_msg = None
     opposite_player = '(b)' if player == '(w)' else '(w)'
 
-    # Is this a readable bishop move?
-    # Conditions:
-    # - len(move) must be either 3 or 4
-    # - the last two chars must be a recognizable square on the board
-    # - if len(move) == 4, the second char must be 'x' and the last two chars 
-    if (len(move) not in [3,4]) or (move[-2:] not in board.keys()) or (len(move) == 4 and move[1] != 'x'):
-        error_msg = 'Unrecognizable bishop move: {move}.'
-        return None, None, is_move_legal, error_msg
-
     # Recognize target square
     to_square = move[-2:]
     
@@ -164,6 +155,55 @@ def process_bishop_move(board, player, move):
     from_square = bishop_position
     return from_square, to_square, is_move_legal, error_msg
 
+def process_pawn_move(board, player, move):
+    global rows, cols, piece_locations
+    error_msg = None
+    is_move_legal = False
+    opposite_player = '(b)' if player == '(w)' else '(w)'
+
+    # Recognize target square
+    to_square = move[-2:]
+    to_col = to_square[0]
+    to_row = int(to_square[1])
+    # Pawns move downward for black, upwards for white
+    pawn_direction = 1 if player=='(w)' else -1
+
+    if (player=='(w)' and to_row==1) or (player=='(b)' and to_row==8):
+        error_msg = f'As {player}, {move} is an illegal move.'
+        return None, to_square, is_move_legal, error_msg
+    
+    # Can a pawn move to the target square?
+
+    if len(move) == 2 and board[to_square] != 'None':
+        error_msg = f'The {to_square} square is occupied.'
+        return None, to_square, is_move_legal, error_msg
+    from_col = to_col
+    pawn_starting_row = 2 if player == '(w)' else 7
+    if board[to_col+str(to_row - pawn_direction)] == 'P'+player:
+        from_row = str(to_row - pawn_direction)
+    elif to_row - 2*pawn_direction == pawn_starting_row \
+            and board[to_col+str(to_row - 2*pawn_direction)] == 'P'+player \
+            and board[to_col+str(to_row - pawn_direction)] == 'None':
+        from_row = str(to_row - 2*pawn_direction)
+    else:
+        error_msg = f'There is no pawn available to move to {move}.'
+        return None, to_square, is_move_legal, error_msg
+    is_move_legal = True
+    from_square = from_col+from_row
+    return from_square, to_square, is_move_legal, error_msg
+    
+    elif len(move)==4 and move[0].islower():
+        # Pawn capture, like dxe5
+        from_col = move[0]
+        from_row = str(to_row - pawn_direction)
+        from_square = from_col+from_row
+        if board[to_square][-3:] != opposite_player \
+                and board[from_square] == 'P'+player:
+            error_msg = f'Pawn in {from_square} cannot capture {board[to_square]} in {to_square}.'
+            return None, to_square, is_move_legal, error_msg
+        is_move_legal = True
+        return from_square, to_square, is_move_legal, error_msg
+
 def process_move(board, player, move):
     '''
     Translates a move in algebraic notation to a from_square and to_square
@@ -177,6 +217,50 @@ def process_move(board, player, move):
         to_col = to_square[0]
         to_row = int(to_square[1])
     pawn_direction = 1 if player=='(w)' else -1
+
+    # Is the move readable?
+    # In order for a move to be readable, it must:
+    # - start with a piece name (N, B, R, K, Q) or a column name (pawn moves) or 'o' (castles)
+    # - in case of piece moves, they must have 3, 4, or 5 chars
+    #   - if they have 3 chars, then the last two chars must be a recognizable square on the board
+    #   - if they have 4 chars, then the second char must be either a row, a col or 'x' and the last two chars must be a recognizable square on the board
+    #   - if they have 5 chars, then the second char must be either a row, a col or 'x'; the third char must be 'x' and the last two chars must ber a recognizable square on the board
+    # - in case of pawn moves, they must have 2 or 4 chars
+    #   - if they have 2 chars, then the last two chars must be a recognizable square on the board
+    #   - if they have 4 chars, then the second char must be 'x' and the last two chars must be a recognizable square on the board
+    # - in case of castles, the moves are 'o-o' and 'o-o-o'
+    if move[0] not in pieces + cols + ['o']:
+        error_msg =  f'Unrecognizable move: {move}.'
+        return None, None, is_move_legal, error_msg
+    
+    if (move[0]=='o' and move not in ['o-o', 'o-o-o']) or move[-2:] not in board.keys():
+        error_msg =  f'Unrecognizable move: {move}.'
+        return None, None, is_move_legal, error_msg
+
+    if move[0] in pieces and len(move) not in [3,4,5]:
+        error_msg =  f'Unrecognizable move: {move}.'
+        return None, None, is_move_legal, error_msg
+
+    if move[0] in pieces and len(move) == 4 and move[1] not in rows + cols + ['x']:
+        error_msg = f'Unrecognizable move: {move}.'
+        return None, None, is_move_legal, error_msg
+    
+    if move[0] in pieces and len(move) == 5 and (move[1] != 'x' or move[2] not in rows + cols + ['x']):
+        error_msg = f'Unrecognizable move: {move}.'
+        return None, None, is_move_legal, error_msg
+    
+    if move[0] in cols and len(move) not in [2,4]:
+        error_msg =  f'Unrecognizable move: {move}.'
+        return None, None, is_move_legal, error_msg
+
+    if move[0] in cols and len(move) == 4 and move[1] != 'x':
+        error_msg = f'Unrecognizable move: {move}.'
+        return None, None, is_move_legal, error_msg
+
+    # Processing moves
+    if move[0] in cols:
+        # Pawn move
+        return process_pawn_move(board, player, move)
 
     if move == 'o-o':
         # Short castles
@@ -201,43 +285,7 @@ def process_move(board, player, move):
             board['h1'] = 'None'
             return None, None, is_move_legal, error_msg 
 
-    if len(move)==2:
-        # Pawn move, like e4
-        if (player=='(w)' and to_row==1) or (player=='(b)' and to_row==8):
-            error_msg = f'As {player}, {move} is an illegal move.'
-            return None, to_square, is_move_legal, error_msg
-        if board[to_square] != 'None':
-            error_msg = f'The {to_square} square is occupied.'
-            return None, to_square, is_move_legal, error_msg
-
-        from_col = to_col
-        pawn_starting_row = 2 if player == '(w)' else 7
-        if board[to_col+str(to_row - pawn_direction)] == 'P'+player:
-            from_row = str(to_row - pawn_direction)
-        elif to_row - 2*pawn_direction == pawn_starting_row \
-                and board[to_col+str(to_row - 2*pawn_direction)] == 'P'+player \
-                and board[to_col+str(to_row - pawn_direction)] == 'None':
-            from_row = str(to_row - 2*pawn_direction)
-        else:
-            error_msg = f'There is no pawn available to move to {move}.'
-            return None, to_square, is_move_legal, error_msg
-        is_move_legal = True
-        from_square = from_col+from_row
-        return from_square, to_square, is_move_legal, error_msg
-    
-    elif len(move)==4 and move[0].islower():
-        # Pawn capture, like dxe5
-        from_col = move[0]
-        from_row = str(to_row - pawn_direction)
-        from_square = from_col+from_row
-        if board[to_square][-3:] != opposite_player \
-                and board[from_square] == 'P'+player:
-            error_msg = f'Pawn in {from_square} cannot capture {board[to_square]} in {to_square}.'
-            return None, to_square, is_move_legal, error_msg
-        is_move_legal = True
-        return from_square, to_square, is_move_legal, error_msg
-
-    elif len(move) == 3 and move[0] == 'B':
+    elif move[0] == 'B':
         return process_bishop_move(board, player, move)
     
     elif (len(move) == 3 or len(move) == 4) and move[0] == 'N':
