@@ -155,6 +155,7 @@ def process_bishop_move(board, player, move):
     from_square = bishop_position
     return from_square, to_square, is_move_legal, error_msg
 
+
 def process_pawn_move(board, player, move):
     global rows, cols, piece_locations
     error_msg = None
@@ -168,41 +169,44 @@ def process_pawn_move(board, player, move):
     # Pawns move downward for black, upwards for white
     pawn_direction = 1 if player=='(w)' else -1
 
+    # Pawn cannot move to the first (last) row if they are from white (black)
     if (player=='(w)' and to_row==1) or (player=='(b)' and to_row==8):
         error_msg = f'As {player}, {move} is an illegal move.'
         return None, to_square, is_move_legal, error_msg
     
     # Can a pawn move to the target square?
-
-    if len(move) == 2 and board[to_square] != 'None':
-        error_msg = f'The {to_square} square is occupied.'
-        return None, to_square, is_move_legal, error_msg
-    from_col = to_col
+    # they can only move one square up (down)
+    # if they are in their starting squares, they can move either one or two squares
     pawn_starting_row = 2 if player == '(w)' else 7
-    if board[to_col+str(to_row - pawn_direction)] == 'P'+player:
-        from_row = str(to_row - pawn_direction)
-    elif to_row - 2*pawn_direction == pawn_starting_row \
-            and board[to_col+str(to_row - 2*pawn_direction)] == 'P'+player \
-            and board[to_col+str(to_row - pawn_direction)] == 'None':
-        from_row = str(to_row - 2*pawn_direction)
-    else:
-        error_msg = f'There is no pawn available to move to {move}.'
-        return None, to_square, is_move_legal, error_msg
-    is_move_legal = True
-    from_square = from_col+from_row
-    return from_square, to_square, is_move_legal, error_msg
-    
-    elif len(move)==4 and move[0].islower():
-        # Pawn capture, like dxe5
-        from_col = move[0]
-        from_row = str(to_row - pawn_direction)
-        from_square = from_col+from_row
-        if board[to_square][-3:] != opposite_player \
-                and board[from_square] == 'P'+player:
-            error_msg = f'Pawn in {from_square} cannot capture {board[to_square]} in {to_square}.'
-            return None, to_square, is_move_legal, error_msg
+    if len(move) == 2 and (board[to_col + str(to_row - pawn_direction)] != 'P'+player \
+            or (board[to_col + str(to_row - 2*pawn_direction)] != 'P'+player) and (to_row - 2*pawn_direction)==pawn_starting_row):
+        error_msg = f'No pawn can move to {to_square}.'
+        return None, None, is_move_legal, error_msg
+
+    if len(move) == 2:
+        from_row = (to_row - pawn_direction) if board[to_row + str(from_row - pawn_direction)] == 'P'+player else (to_row - 2*pawn_direction)
+        from_square = to_col+from_row
         is_move_legal = True
         return from_square, to_square, is_move_legal, error_msg
+
+    # Can a pawn capture on the target square?
+    if len(move) == 4:
+        from_row = str(to_row - pawn_direction)
+        from_square = to_col+from_row
+        if board[from_square] != 'P'+player:
+            error_msg = f'No pawn can capture in {to_square}.'
+            return None, None, is_move_legal, error_msg
+        is_move_legal = True
+        # Update piece locations
+        for i, pawn_location in enumerate(piece_locations[player]['P']):
+            if pawn_location == from_square:
+                piece_locations[player]['P'][i] = to_square
+        captured_piece = board[to_square][0]
+        for i, piece_location in enumerate(piece_locations[opposite_player][captured_piece]):
+            if board[to_square] == piece_location:
+                piece_locations[opposite_player][captured_piece][i] = 'Captured'
+        return from_square, to_square, is_move_legal, error_msg
+
 
 def process_move(board, player, move):
     '''
