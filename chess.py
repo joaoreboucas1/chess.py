@@ -10,20 +10,22 @@ colors = ['(b)', '(w)']
 cols = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 rows = [str(x) for x in range(1,9)]
 piece_locations = {
-    '(w)':
-        {'P': ['a2', 'b2', 'c2', 'd2', 'e2', 'f2', 'g2', 'h2'],
+    '(w)': {
+        'P': ['a2', 'b2', 'c2', 'd2', 'e2', 'f2', 'g2', 'h2'],
         'R': ['a1', 'h1'],
         'N': ['b1', 'g1'],
         'B': ['c1', 'f1'],
-        'Q': 'd1',
-        'K': 'e1'},
-    '(b)':
-        {'P': ['a7', 'b7', 'c7', 'd7', 'e7', 'f7', 'g7', 'h7'],
+        'Q': ['d1'],
+        'K': ['e1']
+    },
+    '(b)': {
+        'P': ['a7', 'b7', 'c7', 'd7', 'e7', 'f7', 'g7', 'h7'],
         'R': ['a8', 'h8'],
         'N': ['b8', 'g8'],
         'B': ['c8', 'f8'],
-        'Q': 'd8',
-        'K': 'e8'}
+        'Q': ['d8'],
+        'K': ['e8']
+    }
 }
 
 
@@ -86,7 +88,7 @@ def move_piece(board, from_square, to_square):
     board[from_square] = 'None'
 
 
-def process_bishop_move(board, player, move):
+def process_bishop_move(board, player, move, is_queen=False):
     # Bishop move, like Bf4
     global rows, cols, piece_locations
     is_move_legal = False
@@ -101,7 +103,8 @@ def process_bishop_move(board, player, move):
     # - the bishop square and the target square must be connected by a diagonal
     # - moving diagonally == moving the same distance vertically and horizontally
     # - if the squares are diagonally connected, there must be no pieces between them
-    bishop_positions = piece_locations[player]['B']
+    piece = 'B' if not is_queen else 'Q'
+    bishop_positions = piece_locations[player][piece]
     for i, bishop_position in enumerate(bishop_positions):
         # Check the trivial case in which the bishop is already in the target square
         if to_square == bishop_position:
@@ -146,7 +149,7 @@ def process_bishop_move(board, player, move):
         return None, None, is_move_legal, error_msg
     
     # Update piece locations
-    piece_locations[player]['B'][i] = to_square
+    piece_locations[player][piece][i] = to_square
     if len(move) == 4:
         captured_piece = board[to_square][0]
         for i, piece_location in enumerate(piece_locations[opposite_player][captured_piece]):
@@ -266,7 +269,7 @@ def process_knight_move(board, player, move):
     return from_square, to_square, is_move_legal, error_msg
 
 
-def process_rook_move(board, player, move):
+def process_rook_move(board, player, move, is_queen=False):
     # Knight move, like Nf3
     global rows, cols, piece_locations
     error_msg = None
@@ -278,7 +281,9 @@ def process_rook_move(board, player, move):
     to_col = to_square[0]
     to_row = to_square[1]
 
-    rook_locations = piece_locations[player]['R']
+    piece = 'R' if not is_queen else 'Q'
+
+    rook_locations = piece_locations[player][piece]
     available_rooks = []
     for rook_location in rook_locations:
         from_col, from_row = rook_location
@@ -307,8 +312,10 @@ def process_rook_move(board, player, move):
             available_rooks.append(True)
         else:
             available_rooks.append(False)
-    
-    is_move_legal = available_rooks[0] != available_rooks[1]
+    try:
+        is_move_legal = available_rooks[0] != available_rooks[1]
+    except:
+        is_move_legal = available_rooks[0]
     if is_move_legal:
         if len(move) == 3 and board[to_square] != 'None':
             error_msg = f'The {to_square} square is not empty.'
@@ -322,9 +329,9 @@ def process_rook_move(board, player, move):
         
         from_square = rook_locations[0] if rook_locations[0] else rook_locations[1]
         if rook_locations[0]:
-            piece_locations[player]['R'][0] = to_square
+            piece_locations[player][piece][0] = to_square
         else:
-            piece_locations[player]['R'][1] = to_square
+            piece_locations[player][piece][1] = to_square
     else:
         if available_rooks[0]:
             error_msg = f'The move {move} is ambiguous: both rooks in {rook_locations[0]} and {rook_locations[1]} can move to {to_square}.'
@@ -333,14 +340,15 @@ def process_rook_move(board, player, move):
         return None, None, is_move_legal, error_msg
     return from_square, to_square, is_move_legal, error_msg
 
+
 def process_queen_move(board, player, move):  
     fictitious_move = 'B'+move[1:]
-    from_square, to_square, is_move_legal, error_msg = process_bishop_move(board, player, fictitious_move)
+    from_square, to_square, is_move_legal, error_msg = process_bishop_move(board, player, fictitious_move, is_queen=True)
     if is_move_legal:
         return from_square, to_square, is_move_legal, error_msg
 
     fictitious_move = 'R'+move[1:]
-    from_square, to_square, is_move_legal, error_msg = process_rook_move(board, player, fictitious_move)
+    from_square, to_square, is_move_legal, error_msg = process_rook_move(board, player, fictitious_move, is_queen=True)
     if is_move_legal:
         return from_square, to_square, is_move_legal, error_msg
     
@@ -416,6 +424,9 @@ def process_move(board, player, move):
 
     elif move[0] == 'R':
         return process_rook_move(board, player, move)
+    
+    elif move[0] == 'Q':
+        return process_queen_move(board, player, move)
 
     elif move == 'o-o':
         # Short castles
@@ -444,7 +455,7 @@ def process_move(board, player, move):
 
     else:
         error_msg = f'Unrecognized move {move}.'
-        return from_square, to_square, is_move_legal, error_msg
+        return None, None, is_move_legal, error_msg
 
 
 def play():
