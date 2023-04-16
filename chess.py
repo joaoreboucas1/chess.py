@@ -209,6 +209,62 @@ def process_pawn_move(board, player, move):
     return from_square, to_square, is_move_legal, error_msg
 
 
+def process_knight_move(board, player, move):
+    # Knight move, like Nf3
+    global rows, cols, piece_locations
+    error_msg = None
+    is_move_legal = False
+    opposite_player = '(b)' if player == '(w)' else '(w)'
+
+    # Recognize target square
+    to_square = move[-2:]
+    to_col = to_square[0]
+    to_row = int(to_square[1])
+
+    knights_positions = piece_locations[player]['N']
+    knights_available = []
+
+    
+    for from_square in knights_positions:
+        from_col, from_row = from_square
+        from_row = int(from_row)
+        if (abs(to_row - from_row) == 1 and abs(ord(to_col) - ord(from_col)) == 2) or \
+                (abs(to_row - from_row) == 2 and abs(ord(to_col) - ord(from_col)) == 1):
+            knights_available.append(True)
+        else:
+            knights_available.append(False)
+    
+    is_move_legal = knights_available[0] != knights_available[1]
+    if is_move_legal:
+        if len(move) == 3 and board[to_square] != 'None':
+            error_msg = f'The {to_square} square is not empty.'
+            if board[to_square][-3:] == opposite_player:
+                error_msg = error_msg+f'Did you mean {move[0] + "x" + move[1:]}?'
+                return None, to_square, is_move_legal, error_msg
+    
+        if len(move) == 4 and move[1] == 'x' and board[to_square][-3:] != opposite_player:
+            error_msg = f'Cannot capture {board[to_square]} in {to_square}.'
+            return None, to_square, is_move_legal, error_msg
+        
+        from_square = knights_positions[0] if knights_available[0] else knights_positions[1]
+        if knights_available[0]:
+            piece_locations[player]['N'][0] = to_square
+        else:
+            piece_locations[player]['N'][0] = to_square
+    else:
+        if knights_available[0]:
+            error_msg = f'The move {move} is ambiguous: both knights in {knights_positions[0]} and {knights_positions[1]} can move to {to_square}.'
+        else:
+            error_msg = f'No knights can move to {to_square}.'
+    
+    if len(move) == 4:
+        taken_piece = board[to_square]
+        for i, piece_location in enumerate(piece_locations[opposite_player][taken_piece[0]]):
+            if piece_location==to_square:
+                piece_locations[opposite_player][taken_piece[0]][i] = 'Dead'
+                break
+    return from_square, to_square, is_move_legal, error_msg
+
 def process_move(board, player, move):
     '''
     Translates a move in algebraic notation to a from_square and to_square
@@ -266,6 +322,12 @@ def process_move(board, player, move):
     if move[0] in cols:
         # Pawn move
         return process_pawn_move(board, player, move)
+    
+    elif move[0] == 'B':
+        return process_bishop_move(board, player, move)
+    
+    elif move[0] == 'N':
+        return process_knight_move(board, player, move)
 
     if move == 'o-o':
         # Short castles
@@ -290,54 +352,9 @@ def process_move(board, player, move):
             board['h1'] = 'None'
             return None, None, is_move_legal, error_msg 
 
-    elif move[0] == 'B':
-        return process_bishop_move(board, player, move)
     
-    elif (len(move) == 3 or len(move) == 4) and move[0] == 'N':
-        # Knight move, like Nf3
-        knights_positions = piece_locations[player]['N']
-        knights_available = []
-        if len(move) == 4 and move[1] not in rows + cols + ['x']:
-            error_msg = f'The second character in move {move} must be a row, a column or x.'
-            return None, to_square, is_move_legal, error_msg
-        if len(move) == 3 and board[to_square] != 'None':
-            error_msg = f'The {to_square} square is not empty.'
-            if board[to_square][-3:] == opposite_player:
-                error_msg = error_msg+f'Did you mean {move[0] + "x" + move[1:]}?'
-            return None, to_square, is_move_legal, error_msg
-        if len(move) == 4 and move[1] == 'x' and board[to_square][-3:] != opposite_player:
-            error_msg = f'Cannot capture {board[to_square]} in {to_square}.'
-            return None, to_square, is_move_legal, error_msg
-        
-        for from_square in knights_positions:
-            from_col, from_row = from_square
-            from_row = int(from_row)
-            if (abs(to_row - from_row) == 1 and abs(ord(to_col) - ord(from_col)) == 2) or \
-                    (abs(to_row - from_row) == 2 and abs(ord(to_col) - ord(from_col)) == 1):
-                knights_available.append(True)
-            else:
-                knights_available.append(False)
-        
-        is_move_legal = knights_available[0] != knights_available[1]
-        if is_move_legal:
-            from_square = knights_positions[0] if knights_available[0] else knights_positions[1]
-            if knights_available[0]:
-                piece_locations[player]['N'][0] = to_square
-            else:
-                piece_locations[player]['N'][0] = to_square
-        else:
-            if knights_available[0]:
-                error_msg = f'The move {move} is ambiguous: both knights in {knights_positions[0]} and {knights_positions[1]} can move to {to_square}.'
-            else:
-                error_msg = f'No knights can move to {to_square}.'
-        
-        if len(move) == 4:
-            taken_piece = board[to_square]
-            for i, piece_location in enumerate(piece_locations[opposite_player][taken_piece[0]]):
-                if piece_location==to_square:
-                    piece_locations[opposite_player][taken_piece[0]][i] = 'Dead'
-                    break
-        return from_square, to_square, is_move_legal, error_msg
+    
+    
     
     else:
         error_msg = f'Unrecognized move {move}.'
@@ -377,6 +394,7 @@ def play():
         elif player=='(b)':
             player = '(w)'
 
+
 def help():
     '''
     Explains algebraic notation
@@ -384,6 +402,7 @@ def help():
     with open('help.txt') as f:
         print(f.read())
     exit()
+
 
 if __name__=='__main__':
     if len(sys.argv) == 1:
