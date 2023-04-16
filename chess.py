@@ -356,7 +356,27 @@ def process_queen_move(board, player, move):
 
 
 def process_king_move(board, player, move):
-    raise Exception('Not implemented')
+    global píece_locations, cols, rows
+    is_move_legal = False
+    error_msg = None
+    opposite_player = '(b)' if player == '(w)' else '(w)'
+
+    from_square = piece_locations[player]['K'][0]
+    to_square = move[-2:]
+    to_col, to_row = to_square
+    from_col, from_row = from_square
+
+    horizontal_dist = ord(to_col) - ord(from_col)
+    vertical_dist = int(to_row) - int(from_row)
+
+    is_move_legal = abs(horizontal_dist) <= 1 and abs(vertical_dist) <= 1
+
+    if len(move) == 3 and board[to_square] != 'None':
+        error_msg = 'The destination square is occupied.'
+    if len(move) == 4 and board[to_square][-3:] != opposite_player:
+        error_msg = f'Cannot capture {board[to_square]} in {to_square}.'
+
+    return from_square, to_square, is_move_legal, error_msg
 
 
 def process_move(board, player, move):
@@ -425,6 +445,9 @@ def process_move(board, player, move):
     elif move[0] == 'R':
         return process_rook_move(board, player, move)
     
+    elif move[0] == 'K':
+        return process_king_move(board, player, move)
+    
     elif move[0] == 'Q':
         return process_queen_move(board, player, move)
 
@@ -450,8 +473,6 @@ def process_move(board, player, move):
             board['e1'] = 'None'
             board['h1'] = 'None'
             return None, None, is_move_legal, error_msg 
-
-    
 
     else:
         error_msg = f'Unrecognized move {move}.'
