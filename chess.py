@@ -26,6 +26,7 @@ piece_locations = {
         'K': 'e8'}
 }
 
+
 def initialize_board():
     '''
     Description: returns a `board` instance.
@@ -224,7 +225,6 @@ def process_knight_move(board, player, move):
     knights_positions = piece_locations[player]['N']
     knights_available = []
 
-    
     for from_square in knights_positions:
         from_col, from_row = from_square
         from_row = int(from_row)
@@ -250,7 +250,7 @@ def process_knight_move(board, player, move):
         if knights_available[0]:
             piece_locations[player]['N'][0] = to_square
         else:
-            piece_locations[player]['N'][0] = to_square
+            piece_locations[player]['N'][1] = to_square
     else:
         if knights_available[0]:
             error_msg = f'The move {move} is ambiguous: both knights in {knights_positions[0]} and {knights_positions[1]} can move to {to_square}.'
@@ -264,6 +264,92 @@ def process_knight_move(board, player, move):
                 piece_locations[opposite_player][taken_piece[0]][i] = 'Dead'
                 break
     return from_square, to_square, is_move_legal, error_msg
+
+
+def process_rook_move(board, player, move):
+    # Knight move, like Nf3
+    global rows, cols, piece_locations
+    error_msg = None
+    is_move_legal = False
+    opposite_player = '(b)' if player == '(w)' else '(w)'
+
+    # Recognize target square
+    to_square = move[-2:]
+    to_col = to_square[0]
+    to_row = to_square[1]
+
+    rook_locations = piece_locations[player]['R']
+    available_rooks = []
+    for rook_location in rook_locations:
+        from_col, from_row = rook_location
+        are_squares_vertically_connected = from_col == to_col
+        vert_collision = False
+        hor_collision = False
+        if are_squares_vertically_connected:
+            # Check for collision
+            for i in range(1, abs(int(to_row) - int(from_row))):
+                sign = -1 if (int(to_row) > int(from_row)) else 1
+                mid_row = str(int(to_row) + i*sign)
+                if board[to_col + mid_row] != 'None':
+                    vert_collision = True
+                    break
+        are_squares_horizontally_connected = from_row == to_row
+        if are_squares_horizontally_connected:
+            # Check for collision
+            for i in range(1, abs(ord(to_col) - ord(from_col))):
+                sign = -1 if (ord(to_col) > ord(from_col)) else 1
+                mid_col = chr(ord(to_col) + i*sign)
+                print(mid_col)
+                if board[mid_col + to_row] != 'None':
+                    hor_collision = True
+                    break
+        if (are_squares_horizontally_connected and not hor_collision) or (are_squares_vertically_connected and not vert_collision):
+            available_rooks.append(True)
+        else:
+            available_rooks.append(False)
+    
+    is_move_legal = available_rooks[0] != available_rooks[1]
+    if is_move_legal:
+        if len(move) == 3 and board[to_square] != 'None':
+            error_msg = f'The {to_square} square is not empty.'
+            if board[to_square][-3:] == opposite_player:
+                error_msg = error_msg+f'Did you mean {move[0] + "x" + move[1:]}?'
+                return None, to_square, is_move_legal, error_msg
+    
+        if len(move) == 4 and move[1] == 'x' and board[to_square][-3:] != opposite_player:
+            error_msg = f'Cannot capture {board[to_square]} in {to_square}.'
+            return None, to_square, is_move_legal, error_msg
+        
+        from_square = rook_locations[0] if rook_locations[0] else rook_locations[1]
+        if rook_locations[0]:
+            piece_locations[player]['R'][0] = to_square
+        else:
+            piece_locations[player]['R'][1] = to_square
+    else:
+        if available_rooks[0]:
+            error_msg = f'The move {move} is ambiguous: both rooks in {rook_locations[0]} and {rook_locations[1]} can move to {to_square}.'
+        else:
+            error_msg = f'No rooks can move to {to_square}.'
+        return None, None, is_move_legal, error_msg
+    return from_square, to_square, is_move_legal, error_msg
+
+def process_queen_move(board, player, move):  
+    fictitious_move = 'B'+move[1:]
+    from_square, to_square, is_move_legal, error_msg = process_bishop_move(board, player, fictitious_move)
+    if is_move_legal:
+        return from_square, to_square, is_move_legal, error_msg
+
+    fictitious_move = 'R'+move[1:]
+    from_square, to_square, is_move_legal, error_msg = process_rook_move(board, player, fictitious_move)
+    if is_move_legal:
+        return from_square, to_square, is_move_legal, error_msg
+    
+    return None, None, is_move_legal, error_msg
+
+
+def process_king_move(board, player, move):
+    raise Exception('Not implemented')
+
 
 def process_move(board, player, move):
     '''
@@ -320,7 +406,6 @@ def process_move(board, player, move):
 
     # Processing moves
     if move[0] in cols:
-        # Pawn move
         return process_pawn_move(board, player, move)
     
     elif move[0] == 'B':
@@ -329,7 +414,10 @@ def process_move(board, player, move):
     elif move[0] == 'N':
         return process_knight_move(board, player, move)
 
-    if move == 'o-o':
+    elif move[0] == 'R':
+        return process_rook_move(board, player, move)
+
+    elif move == 'o-o':
         # Short castles
         if player=='(w)':
             if board['e1'] != 'K'+player:
@@ -353,9 +441,7 @@ def process_move(board, player, move):
             return None, None, is_move_legal, error_msg 
 
     
-    
-    
-    
+
     else:
         error_msg = f'Unrecognized move {move}.'
         return from_square, to_square, is_move_legal, error_msg
