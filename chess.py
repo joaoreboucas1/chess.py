@@ -379,6 +379,51 @@ def process_king_move(board, player, move):
     return from_square, to_square, is_move_legal, error_msg
 
 
+def process_long_castles(board, player, move):
+    raise Exception('Not implemented')
+
+
+def process_short_castles(board, player, move):
+    raise Exception('Not implemented')
+
+
+def is_square_threatened(board, player, square):
+    '''
+    Checks if `square` is threatened by `player`
+    '''
+    global pieces, piece_locations
+    piece_processes = {
+        'R': process_rook_move,
+        'N': process_knight_move,
+        'B': process_bishop_move,
+        'Q': process_queen_move,
+        'K': process_king_move,
+        'P': process_pawn_move
+    }
+    # Temporarily create a dummy piece in square
+    opposite_player = '(b)' if player=='(w)' else '(w)'
+    original_piece = board[square]
+    board[square] = f'Q{opposite_player}'
+    for piece in pieces:
+        specific_piece_locations = piece_locations[player][piece]
+        if specific_piece_locations is None:
+            continue
+        
+        for location in specific_piece_locations:
+            if piece == "P":
+                pawn_col = location[0]
+                move = f'{pawn_col}x{square}'
+                _,_, is_move_legal,_ = piece_processes[piece](board, player, move)
+            else:
+                move = f'{Piece}{square}' 
+                _,_, is_move_legal,_ = piece_processes[piece](board, player, move)
+            if is_move_legal:
+                board[square] = original_piece
+                return True
+        board[square] = original_piece
+        return False
+                
+
 def process_move(board, player, move):
     '''
     Translates a move in algebraic notation to a from_square and to_square
@@ -474,6 +519,9 @@ def process_move(board, player, move):
             board['h1'] = 'None'
             return None, None, is_move_legal, error_msg 
 
+    elif move == 'o-o-o':
+        return process_long_castles(board, player, move)
+
     else:
         error_msg = f'Unrecognized move {move}.'
         return None, None, is_move_legal, error_msg
@@ -492,13 +540,15 @@ def play():
         move = input('{} to move: '.format('White' if player=='(w)' else 'Black'))
         if move == 'q':
             break
-        
         from_square, to_square, is_move_legal, error_msg = process_move(board, player, move)
         while not is_move_legal:
             move = input(f'{error_msg} Please, input a legal move: ')
             if move == 'q':
                 exit()
             from_square, to_square, is_move_legal, error_msg = process_move(board, player, move)
+
+        is_e4_threatened = is_square_threatened(board, '(w)', 'e4')
+        print(f'e4 is threatened by white? {is_e4_threatened}')
 
         if board[to_square] != 'None':
             print(f'{board[from_square]} captures {board[to_square]} on {to_square}')
