@@ -345,11 +345,30 @@ def process_king_move(board, player, move):
 
 
 def process_long_castles(board, player, move):
-    raise Exception('Not implemented')
+    error_msg = None
+    king_row = '1' if player=='(w)' else '8'
+    opposite_player = '(b)' if player=='(w)' else '(w)'
+    is_move_legal = board[f'e{king_row}']==f'K{player}' \
+        and board[f'a{king_row}']==f'R{player}' \
+        and (not is_square_threatened(board, opposite_player, f'b{king_row}')) \
+        and (not is_square_threatened(board, opposite_player, f'c{king_row}')) \
+        and (not is_square_threatened(board, opposite_player, f'd{king_row}'))
+    if not is_move_legal:
+        error_msg = "Cannot short castles because there are pieces in the way."
+    return None, None, is_move_legal, error_msg
 
 
 def process_short_castles(board, player, move):
-    raise Exception('Not implemented')
+    error_msg = None
+    king_row = '1' if player=='(w)' else '8'
+    opposite_player = '(b)' if player=='(w)' else '(w)'
+    is_move_legal = board[f'e{king_row}']==f'K{player}' \
+        and board[f'h{king_row}']==f'R{player}' \
+        and (not is_square_threatened(board, opposite_player, f'f{king_row}')) \
+        and (not is_square_threatened(board, opposite_player, f'g{king_row}'))
+    if not is_move_legal:
+        error_msg = "Cannot short castles because there are pieces in the way."
+    return None, None, is_move_legal, error_msg
 
 
 def is_square_threatened(board, player, square):
@@ -514,7 +533,6 @@ def check_validity(board, player, move):
             Did you mean {move[0]}{move[-2:]}?"""
     
     return from_square, to_square, is_move_legal, error_msg
-
 
 
 def play():
