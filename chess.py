@@ -134,27 +134,6 @@ def process_bishop_move(board, player, move, is_queen=False):
             if board[trying_square] != 'None':
                 error_msg = f'Bishop in {bishop_position} cannot move to {to_square} because {board[trying_square]} in {trying_square} blocks the path.'
                 return None, to_square, is_move_legal, error_msg
-        
-    # If the bishop can go to the target square, we need to check if it is empty (if not captures) or it's a enemy piece (if capture)
-    if len(move) == 3 and board[to_square] != 'None':
-        error_msg = f'Cannot move bishop to {to_square} because it is not empty.'
-        if board[to_square][-3:] == opposite_player:
-            error_msg += f' Did you mean Bx{to_square}?'
-        return None, None, is_move_legal, error_msg
-    
-    if len(move) == 4 and board[to_square][-3:] != opposite_player:
-        error_msg = f'Bishop cannot capture {board[to_square]}.'
-        if board[to_square][0] == 'None':
-            error_msg += f' Did you mean B{to_square}?'
-        return None, None, is_move_legal, error_msg
-    
-    # Update piece locations
-    piece_locations[player][piece][i] = to_square
-    if len(move) == 4:
-        captured_piece = board[to_square][0]
-        for i, piece_location in enumerate(piece_locations[opposite_player][captured_piece]):
-            if board[to_square] == piece_location:
-                piece_locations[opposite_player][captured_piece][i] = 'Captured'
 
     is_move_legal = True
     from_square = bishop_position
@@ -213,6 +192,30 @@ def process_pawn_move(board, player, move):
     return from_square, to_square, is_move_legal, error_msg
 
 
+def process_pawn_captures(board, player, move):
+    global rows, cols, piece_locations
+    error_msg = None
+    is_move_legal = False
+
+    # Recognize target square
+    to_square = move[-2:]
+    to_row = int(to_square[1])
+    to_col = to_square[0]
+    # Pawns move downward for black, upwards for white
+    pawn_direction = 1 if player=='(w)' else -1
+    from_col = move[0]
+    if abs(ord(from_col)-ord(to_col)) != 1:
+        error_msg = f'Pawn in {from_col} cannot capture in {to_col}.'
+        return None, None, is_move_legal, error_msg
+    from_row = str(to_row - pawn_direction)
+    from_square = from_col+from_row
+    if board[from_square] != 'P'+player:
+        error_msg = f'No pawn can capture in {to_square}.'
+        return None, None, is_move_legal, error_msg
+    is_move_legal = True
+    return from_square, to_square, is_move_legal, error_msg
+
+
 def process_knight_move(board, player, move):
     # Knight move, like Nf3
     global rows, cols, piece_locations
@@ -238,34 +241,15 @@ def process_knight_move(board, player, move):
             knights_available.append(False)
     
     is_move_legal = knights_available[0] != knights_available[1]
-    if is_move_legal:
-        if len(move) == 3 and board[to_square] != 'None':
-            error_msg = f'The {to_square} square is not empty.'
-            if board[to_square][-3:] == opposite_player:
-                error_msg = error_msg+f'Did you mean {move[0] + "x" + move[1:]}?'
-                return None, to_square, is_move_legal, error_msg
-    
-        if len(move) == 4 and move[1] == 'x' and board[to_square][-3:] != opposite_player:
-            error_msg = f'Cannot capture {board[to_square]} in {to_square}.'
-            return None, to_square, is_move_legal, error_msg
-        
+    if is_move_legal:      
         from_square = knights_positions[0] if knights_available[0] else knights_positions[1]
-        if knights_available[0]:
-            piece_locations[player]['N'][0] = to_square
-        else:
-            piece_locations[player]['N'][1] = to_square
     else:
         if knights_available[0]:
             error_msg = f'The move {move} is ambiguous: both knights in {knights_positions[0]} and {knights_positions[1]} can move to {to_square}.'
         else:
             error_msg = f'No knights can move to {to_square}.'
+        return None, None, is_move_legal, error_msg
     
-    if len(move) == 4:
-        taken_piece = board[to_square]
-        for i, piece_location in enumerate(piece_locations[opposite_player][taken_piece[0]]):
-            if piece_location==to_square:
-                piece_locations[opposite_player][taken_piece[0]][i] = 'Dead'
-                break
     return from_square, to_square, is_move_legal, error_msg
 
 
@@ -316,22 +300,8 @@ def process_rook_move(board, player, move, is_queen=False):
         is_move_legal = available_rooks[0] != available_rooks[1]
     except:
         is_move_legal = available_rooks[0]
-    if is_move_legal:
-        if len(move) == 3 and board[to_square] != 'None':
-            error_msg = f'The {to_square} square is not empty.'
-            if board[to_square][-3:] == opposite_player:
-                error_msg = error_msg+f'Did you mean {move[0] + "x" + move[1:]}?'
-                return None, to_square, is_move_legal, error_msg
-    
-        if len(move) == 4 and move[1] == 'x' and board[to_square][-3:] != opposite_player:
-            error_msg = f'Cannot capture {board[to_square]} in {to_square}.'
-            return None, to_square, is_move_legal, error_msg
-        
+    if is_move_legal:        
         from_square = rook_locations[0] if rook_locations[0] else rook_locations[1]
-        if rook_locations[0]:
-            piece_locations[player][piece][0] = to_square
-        else:
-            piece_locations[player][piece][1] = to_square
     else:
         if available_rooks[0]:
             error_msg = f'The move {move} is ambiguous: both rooks in {rook_locations[0]} and {rook_locations[1]} can move to {to_square}.'
@@ -371,11 +341,6 @@ def process_king_move(board, player, move):
 
     is_move_legal = abs(horizontal_dist) <= 1 and abs(vertical_dist) <= 1
 
-    if len(move) == 3 and board[to_square] != 'None':
-        error_msg = 'The destination square is occupied.'
-    if len(move) == 4 and board[to_square][-3:] != opposite_player:
-        error_msg = f'Cannot capture {board[to_square]} in {to_square}.'
-
     return from_square, to_square, is_move_legal, error_msg
 
 
@@ -398,12 +363,8 @@ def is_square_threatened(board, player, square):
         'B': process_bishop_move,
         'Q': process_queen_move,
         'K': process_king_move,
-        'P': process_pawn_move
+        'P': process_pawn_captures
     }
-    # Temporarily create a dummy piece in square
-    opposite_player = '(b)' if player=='(w)' else '(w)'
-    original_piece = board[square]
-    board[square] = f'Q{opposite_player}'
     for piece in pieces:
         specific_piece_locations = piece_locations[player][piece]
         if specific_piece_locations is None:
@@ -415,17 +376,17 @@ def is_square_threatened(board, player, square):
                 move = f'{pawn_col}x{square}'
                 _,_, is_move_legal,_ = piece_processes[piece](board, player, move)
             else:
-                move = f'{Piece}{square}' 
+                move = f'{piece}{square}' 
                 _,_, is_move_legal,_ = piece_processes[piece](board, player, move)
             if is_move_legal:
-                board[square] = original_piece
+                print(f"Piece {piece} from {player} in {location} is threatening {square}")
                 return True
-        board[square] = original_piece
         return False
-                
+
 
 def process_move(board, player, move):
     '''
+    Checks if move is a readable move. Then, checks if move is valid (i.e. the piece can move to the square)
     Translates a move in algebraic notation to a from_square and to_square
     '''
     global rows, cols, piece_locations
@@ -479,7 +440,10 @@ def process_move(board, player, move):
 
     # Processing moves
     if move[0] in cols:
-        return process_pawn_move(board, player, move)
+        if len(move) == 2:
+            return process_pawn_move(board, player, move)
+        else:
+            return process_pawn_captures(board, player, move)
     
     elif move[0] == 'B':
         return process_bishop_move(board, player, move)
@@ -519,12 +483,38 @@ def process_move(board, player, move):
             board['h1'] = 'None'
             return None, None, is_move_legal, error_msg 
 
+
     elif move == 'o-o-o':
         return process_long_castles(board, player, move)
 
     else:
         error_msg = f'Unrecognized move {move}.'
         return None, None, is_move_legal, error_msg
+
+
+def check_validity(board, player, move):
+    """
+    Given a legal move, see which piece is in the landing square
+    """
+    from_square, to_square, is_move_legal, error_msg = process_move(board, player, move)
+    
+    if not is_move_legal:
+        return None, None, is_move_legal, error_msg
+    
+    opposite_player = '(b)' if player=='(w)' else '(w)'
+    if board[to_square][-3:] == player:
+        return False, f"Cannot move {board[from_square]} to {to_square} because it's occupied by {board[to_square]}."
+    
+    if board[to_square][-3:] == opposite_player and (move[1] != 'x' or move[2] != 'x'):
+        return False, f"""Cannot move {board[from_square]} to {to_square} because it's occupied by {board[to_square]}.
+            Did you mean {move[0]}x{move[-2:]}?"""
+    
+    if board[to_square] == "None" and (move[1] == 'x' or (len(move) > 2 and move[2] == 'x')):
+        return False, f"""Cannot capture on {to_square} because it's empty.
+            Did you mean {move[0]}{move[-2:]}?"""
+    
+    return from_square, to_square, is_move_legal, error_msg
+
 
 
 def play():
@@ -540,15 +530,12 @@ def play():
         move = input('{} to move: '.format('White' if player=='(w)' else 'Black'))
         if move == 'q':
             break
-        from_square, to_square, is_move_legal, error_msg = process_move(board, player, move)
+        from_square, to_square, is_move_legal, error_msg = check_validity(board, player, move)
         while not is_move_legal:
             move = input(f'{error_msg} Please, input a legal move: ')
             if move == 'q':
                 exit()
-            from_square, to_square, is_move_legal, error_msg = process_move(board, player, move)
-
-        is_e4_threatened = is_square_threatened(board, '(w)', 'e4')
-        print(f'e4 is threatened by white? {is_e4_threatened}')
+            from_square, to_square, is_move_legal, error_msg = check_validity(board, player, move)
 
         if board[to_square] != 'None':
             print(f'{board[from_square]} captures {board[to_square]} on {to_square}')
